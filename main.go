@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"time"
 
@@ -30,59 +31,51 @@ func apiResponse(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func dbInit() (*sql.DB, *redis.Client, error) {
-	// postgres
-	psqlInfo := "host=localhost port=5432 user=postgres password=postgres sslmode=disable"
-	db, err := sql.Open("postgres", psqlInfo)
-	if err != nil {
-		return nil, nil, err
-	}
-	err = db.Ping()
-	if err != nil {
-		return nil, nil, err
-	}
-	// redis
-	client := redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
-		Password: "",
-		DB:       0,
-	})
-	_, err = client.Ping(client.Context()).Result()
-	if err != nil {
-		return nil, nil, err
-	}
-	return db, client, err
-}
+var db *sql.DB
+var client *redis.Client
+var err error
 
-func makeSWAPICall(endpoint string, client *redis.Client) (string, error) {
+func makeSWAPICall(endpoint string, client *redis.Client) ([]byte, error) {
+	var res []byte
 	// check if value is cached
 	val, err := client.Get(context.Background(), endpoint).Result()
 	if err == redis.Nil {
 		resp, err := http.Get("https://swapi.dev/api/" + endpoint)
 		if err != nil {
-			return "makeSWAPICall: http error", err
+			return nil, err
 		}
-		body, err := ioutil.ReadAll(resp.Body)
+		res, err = ioutil.ReadAll(resp.Body)
 		if err != nil {
-			return "makeSWAPICall: reading error", err
+			return nil, err
 		}
-		val = string(body)
 		// cache for future fetches
-		err = client.Set(context.Background(), endpoint, val, 20*time.Second).Err()
+		err = client.Set(context.Background(), endpoint, string(res), 48*time.Hour).Err()
 	} else if err != nil {
 		panic(err)
+	} else {
+		res = []byte(val) // found
 	}
-	return val, err
+	return res, err
 }
 
 func main() {
-	db, client, err := dbInit()
+	db, client, err = dbInit()
 	if err != nil {
 		panic(err)
 	}
 
+	http.HandleFunc("/films", getFilms)
+	http.HandleFunc("/characters/", getCharacters)
+	http.HandleFunc("/comments/", getComments)
+	http.HandleFunc("/comment", postComment)
+	log.Fatal(http.ListenAndServe(":8080", nil))
+	return
+
 	//			<test>
 	rows, err := db.Query("SELECT * FROM x")
+	if err != nil {
+		panic(err)
+	}
 	defer rows.Close()
 	for rows.Next() {
 		var x int
