@@ -6,7 +6,6 @@ import (
 	"log"
 	"net/http"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -34,8 +33,7 @@ type Comment struct {
 	Timestamp time.Time
 }
 
-func getFilms(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
+func filmsGET(w http.ResponseWriter, r *http.Request) {
 	val, _ := makeSWAPICall("films", client)
 
 	var films struct{ Results []Film }
@@ -47,62 +45,26 @@ func getFilms(w http.ResponseWriter, r *http.Request) {
 		return films.Results[i].Release_Date < films.Results[j].Release_Date
 	})
 
-	out, _ := json.Marshal(films)
-	w.Write(out)
+	httpJsonResp(films, w)
 }
 
-func getCharacters(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
+func charactersGET(w http.ResponseWriter, r *http.Request) {
 	id := strings.TrimPrefix(r.URL.Path, "/characters/")
-
-	val, _ := makeSWAPICall("films/"+id, client)
-
 	sortParam := r.URL.Query().Get("sort")
 	filterParam := r.URL.Query().Get("filter")
 
-	var film struct{ Characters []string }
+	resp, _ := makeSWAPICall("films/"+id, client)
 
-	if err := json.Unmarshal(val, &film); err != nil {
+	var film struct{ Characters []string }
+	if err := json.Unmarshal(resp, &film); err != nil {
 		log.Fatal(err)
 	}
 
-	var characters []Character
-	var totalHeight float64
-	for _, x := range film.Characters {
-		characterId := strings.TrimPrefix(x, "https://swapi.dev/api/people/")
-		val, _ = makeSWAPICall("people/"+characterId, client)
-		var character Character
-		if err := json.Unmarshal(val, &character); err != nil {
-			log.Fatal(err)
-		}
-		character.Height_Ft, _ = heightInFeet(character.Height)
-		if filterParam == "" || character.Gender == filterParam {
-			characters = append(characters, character)
+	characters, totalHeight, err := fetchCharacters(film.Characters, filterParam)
+	if err != nil {
 
-			height, _ := strconv.ParseFloat(character.Height, 64)
-			totalHeight += height
-		}
 	}
-
-	asc := true
-	if sortParam != "" && sortParam[0] == '-' {
-		asc = false
-		sortParam = strings.TrimPrefix(sortParam, "-")
-	}
-
-	if sortParam == "name" {
-		sort.Slice(characters, func(i, j int) bool {
-			return asc == (characters[i].Name < characters[j].Name)
-		})
-	} else if sortParam == "height" {
-		sort.Slice(characters, func(i, j int) bool {
-			return asc == (characters[i].Height < characters[j].Height)
-		})
-	} else if sortParam == "gender" {
-		sort.Slice(characters, func(i, j int) bool {
-			return asc == (characters[i].Gender < characters[j].Gender)
-		})
-	}
+	sortCharacters(sortParam, characters)
 
 	var response struct {
 		Count          int
@@ -115,12 +77,10 @@ func getCharacters(w http.ResponseWriter, r *http.Request) {
 	response.TotalHeight_Ft, _ = heightInFeet(response.TotalHeight)
 	response.Characters = characters
 
-	out, _ := json.Marshal(response)
-	w.Write(out)
+	httpJsonResp(response, w)
 }
 
-func getComments(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
+func commentsGET(w http.ResponseWriter, r *http.Request) {
 	var comments struct {
 		Count    int
 		Comments []Comment
@@ -131,23 +91,22 @@ func getComments(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var comment Comment
+		var c Comment
 		var id int
-		if err := rows.Scan(&id, &comment.Movie_Id,
-			&comment.Content, &comment.IP, &comment.Timestamp); err != nil {
+		err := rows.Scan(&id, &c.Movie_Id, &c.Content, &c.IP, &c.Timestamp)
+		if err != nil {
 			panic(err)
 		}
-		comments.Comments = append(comments.Comments, comment)
+		comments.Comments = append(comments.Comments, c)
 	}
+	comments.Count = len(comments.Comments)
 
-	out, _ := json.Marshal(comments)
-	w.Write(out)
+	httpJsonResp(comments, w)
 }
 
-func postComment(w http.ResponseWriter, r *http.Request) {
-	ip := r.RemoteAddr
-	fmt.Println(ip)
+func commentPOST(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
+
 	var comment struct {
 		Comment  string
 		Movie_Id string
@@ -162,10 +121,20 @@ func postComment(w http.ResponseWriter, r *http.Request) {
 	if comment.Movie_Id == "" || comment.Comment == "" {
 		panic(0)
 	}
-	_, err = db.Exec(fmt.Sprintf("INSERT INTO film_comments (movie_id, comment, commenter_ip, timestamp) VALUES (%s, '%s', '%s', (NOW() AT TIME ZONE 'utc'));", comment.Movie_Id, comment.Comment, ip))
+	ip := r.RemoteAddr
+
+	_, err = db.Exec(fmt.Sprintf(`INSERT INTO film_comments (movie_id, comment, commenter_ip, timestamp)
+		VALUES (%s, '%s', '%s', (NOW() AT TIME ZONE 'utc'));`, comment.Movie_Id, comment.Comment, ip))
 	if err != nil {
-		fmt.Println("abc")
 		panic(err)
 	}
-	log.Println(comment)
+
+	var response struct {
+		Message string
+		IP      string
+	}
+	response.Message = "Comment posted"
+	response.IP = ip
+
+	httpJsonResp(response, w)
 }
