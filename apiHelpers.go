@@ -38,6 +38,7 @@ func makeSWAPICall(endpoint string, client *redis.Client) ([]byte, error) {
 	// check if value is cached
 	val, err := client.Get(context.Background(), endpoint).Result()
 	if err == redis.Nil {
+		log.Println("makeSWAPICall: cache not found, fetching", endpoint)
 		resp, err := http.Get("https://swapi.dev/api/" + endpoint)
 		if err != nil {
 			return nil, err

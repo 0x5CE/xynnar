@@ -115,11 +115,20 @@ func charactersGET(w http.ResponseWriter, r *http.Request) {
 }
 
 func commentsGET(w http.ResponseWriter, r *http.Request) {
+	id := strings.TrimPrefix(r.URL.Path, "/comments/")
 	var comments struct {
 		Count    int
 		Comments []Comment
 	}
-	rows, err := db.Query("SELECT * FROM film_comments ORDER BY timestamp DESC")
+	var query string
+	if id == "" {
+		// all
+		query = "SELECT * FROM film_comments ORDER BY timestamp DESC"
+	} else {
+		query = fmt.Sprintf(`SELECT * FROM film_comments 
+			WHERE movie_id=%s ORDER BY timestamp DESC `, id)
+	}
+	rows, err := db.Query(query)
 	if err != nil {
 		httpJsonError("Internal error", w, err)
 		log.Printf("commentsGET: select error")
@@ -143,6 +152,10 @@ func commentsGET(w http.ResponseWriter, r *http.Request) {
 }
 
 func commentPOST(w http.ResponseWriter, r *http.Request) {
+	var id string
+	if r.URL.Path != "/comment" {
+		id = strings.TrimPrefix(r.URL.Path, "/comment/")
+	}
 	decoder := json.NewDecoder(r.Body)
 
 	var comment struct {
@@ -154,6 +167,9 @@ func commentPOST(w http.ResponseWriter, r *http.Request) {
 		httpJsonError("Internal error", w, err)
 		log.Printf("commentPOST: decode error")
 		return
+	}
+	if id != "" {
+		comment.Movie_Id = id
 	}
 	if len(comment.Comment) > 500 {
 		httpJsonError("comment must be less than 500 characters", w, err)
@@ -170,6 +186,7 @@ func commentPOST(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		httpJsonError("Internal error", w, err)
 		log.Printf("commentPOST: insert error")
+		return
 	}
 	var response struct {
 		Message string

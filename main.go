@@ -25,5 +25,6 @@ func main() {
 	http.HandleFunc("/characters/", charactersGET)
 	http.HandleFunc("/comments/", commentsGET)
 	http.HandleFunc("/comment", commentPOST)
+	http.HandleFunc("/comment/", commentPOST)
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
