@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"sort"
 	"strconv"
@@ -23,6 +24,8 @@ func httpJsonError(message string, w http.ResponseWriter) {
 	var response struct{ Message string }
 	response.Message = message
 	out, _ := json.Marshal(response)
+
+	log.Println(message)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(500)

@@ -34,11 +34,18 @@ type Comment struct {
 }
 
 func filmsGET(w http.ResponseWriter, r *http.Request) {
-	val, _ := makeSWAPICall("films", client)
+	val, err := makeSWAPICall("films", client)
+	if err != nil {
+		httpJsonError("Error fetching films", w)
+		return
+	}
 
 	var films struct{ Results []Film }
-	if err := json.Unmarshal(val, &films); err != nil {
-		log.Fatal(err)
+	err = json.Unmarshal(val, &films)
+
+	if err != nil {
+		httpJsonError("Error in films data", w)
+		return
 	}
 
 	sort.Slice(films.Results, func(i, j int) bool {
@@ -53,16 +60,24 @@ func charactersGET(w http.ResponseWriter, r *http.Request) {
 	sortParam := r.URL.Query().Get("sort")
 	filterParam := r.URL.Query().Get("filter")
 
-	resp, _ := makeSWAPICall("films/"+id, client)
+	resp, err := makeSWAPICall("films/"+id, client)
+	if err != nil {
+		httpJsonError("Error fetching films", w)
+		return
+	}
 
 	var film struct{ Characters []string }
-	if err := json.Unmarshal(resp, &film); err != nil {
-		log.Fatal(err)
+	err = json.Unmarshal(resp, &film)
+
+	if err != nil {
+		httpJsonError("Error in films data", w)
+		return
 	}
 
 	characters, totalHeight, err := fetchCharacters(film.Characters, filterParam)
 	if err != nil {
-
+		httpJsonError("Error fetching characters", w)
+		return
 	}
 	sortCharacters(sortParam, characters)
 
@@ -87,7 +102,9 @@ func commentsGET(w http.ResponseWriter, r *http.Request) {
 	}
 	rows, err := db.Query("SELECT * FROM film_comments ORDER BY timestamp DESC")
 	if err != nil {
-		panic(err)
+		httpJsonError("Internal error", w)
+		log.Printf("commentsGET: select error")
+		return
 	}
 	defer rows.Close()
 	for rows.Next() {
@@ -95,7 +112,9 @@ func commentsGET(w http.ResponseWriter, r *http.Request) {
 		var id int
 		err := rows.Scan(&id, &c.Movie_Id, &c.Content, &c.IP, &c.Timestamp)
 		if err != nil {
-			panic(err)
+			httpJsonError("Internal error", w)
+			log.Printf("commentsGET: scan error")
+			return
 		}
 		comments.Comments = append(comments.Comments, c)
 	}
@@ -113,28 +132,31 @@ func commentPOST(w http.ResponseWriter, r *http.Request) {
 	}
 	err := decoder.Decode(&comment)
 	if err != nil {
-		panic(err)
+		httpJsonError("Internal error", w)
+		log.Printf("commentPOST: decode error")
+		return
 	}
 	if len(comment.Comment) > 500 {
-		panic(0)
+		httpJsonError("comment must be less than 500 characters", w)
+		return
 	}
 	if comment.Movie_Id == "" || comment.Comment == "" {
-		panic(0)
+		httpJsonError("movie_id or comment missing", w)
+		return
 	}
 	ip := r.RemoteAddr
 
 	_, err = db.Exec(fmt.Sprintf(`INSERT INTO film_comments (movie_id, comment, commenter_ip, timestamp)
 		VALUES (%s, '%s', '%s', (NOW() AT TIME ZONE 'utc'));`, comment.Movie_Id, comment.Comment, ip))
 	if err != nil {
-		panic(err)
+		httpJsonError("Internal error", w)
+		log.Printf("commentPOST: insert error")
 	}
-
 	var response struct {
 		Message string
 		IP      string
 	}
 	response.Message = "Comment posted"
 	response.IP = ip
-
 	httpJsonResp(response, w)
 }
