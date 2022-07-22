@@ -20,12 +20,13 @@ func httpJsonResp(response any, w http.ResponseWriter) {
 	w.Write(out)
 }
 
-func httpJsonError(message string, w http.ResponseWriter) {
+func httpJsonError(message string, w http.ResponseWriter, err error) {
 	var response struct{ Message string }
 	response.Message = message
 	out, _ := json.Marshal(response)
 
 	log.Println(message)
+	log.Println(err)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(500)
@@ -79,8 +80,8 @@ func sortCharacters(sortParam string, characters []Character) {
 func fetchCharacters(charactersLinks []string, filterParam string) ([]Character, float64, error) {
 	var characters []Character
 	var totalHeight float64
-	for _, x := range charactersLinks {
-		characterId := strings.TrimPrefix(x, "https://swapi.dev/api/people/")
+	for _, url := range charactersLinks {
+		characterId := strings.TrimPrefix(url, "https://swapi.dev/api/people/")
 		resp, _ := makeSWAPICall("people/"+characterId, client)
 
 		var character Character
