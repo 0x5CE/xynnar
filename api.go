@@ -64,24 +64,21 @@ type commentPOSTBody struct {
 // @Produce     json
 // @Success     200 {object} filmsGETResp
 // @Router      /api/films [get]
-func filmsGET(w http.ResponseWriter, r *http.Request) {
-	val, err := makeSWAPICall("films", client)
+func filmsGET(w http.ResponseWriter, r *http.Request, connect Connect) (any, error) {
+	val, err := makeSWAPICall("films", connect)
 	if err != nil {
-		httpJsonError("Error fetching films", w, err)
-		return
+		return "Error fetching films", err
 	}
 
 	var films filmsGETResp
 	err = json.Unmarshal(val, &films)
 	if err != nil {
-		httpJsonError("Error in films data", w, err)
-		log.Println(err)
-		return
+		return "Error in films data", err
 	}
 
 	var commentsCount int
 	for i, f := range films.Results {
-		rows, err := db.Query(`SELECT count(*) FROM film_comments WHERE 
+		rows, err := connect.db.Query(`SELECT count(*) FROM film_comments WHERE 
 			movie_id=` + strconv.Itoa(f.Episode_Id))
 		if err != nil {
 			log.Println("filmsGET: Error in retreiving film comments count")
@@ -101,7 +98,7 @@ func filmsGET(w http.ResponseWriter, r *http.Request) {
 	sort.Slice(films.Results, func(i, j int) bool {
 		return films.Results[i].Release_Date < films.Results[j].Release_Date
 	})
-	httpJsonResp(films, w)
+	return films, nil
 }
 
 // @tags		Characters
@@ -114,29 +111,26 @@ func filmsGET(w http.ResponseWriter, r *http.Request) {
 // @Param       filter  query     string false "Filter by gender"
 // @Success     200 {object} charactersGETResp
 // @Router      /api/characters/{movie_id} [get]
-func charactersGET(w http.ResponseWriter, r *http.Request) {
+func charactersGET(w http.ResponseWriter, r *http.Request, connect Connect) (any, error) {
 	id := strings.TrimPrefix(r.URL.Path, "/api/characters/")
 	sortParam := r.URL.Query().Get("sort")
 	filterParam := r.URL.Query().Get("filter")
 
-	resp, err := makeSWAPICall("films/"+id, client)
+	resp, err := makeSWAPICall("films/"+id, connect)
 	if err != nil {
-		httpJsonError("Error fetching films", w, err)
-		return
+		return "Error fetching films", err
 	}
 
 	var film struct{ Characters []string }
 	err = json.Unmarshal(resp, &film)
 
 	if err != nil {
-		httpJsonError("Error in films data", w, err)
-		return
+		return "Error in films data", err
 	}
 
-	characters, totalHeight, err := fetchCharacters(film.Characters, filterParam)
+	characters, totalHeight, err := fetchCharacters(film.Characters, filterParam, connect)
 	if err != nil {
-		httpJsonError("Error fetching characters", w, err)
-		return
+		return "Error fetching characters", err
 	}
 	sortCharacters(sortParam, characters)
 
@@ -146,7 +140,7 @@ func charactersGET(w http.ResponseWriter, r *http.Request) {
 	response.TotalHeight_Ft, _ = heightInFeet(response.TotalHeight)
 	response.Characters = characters
 
-	httpJsonResp(response, w)
+	return response, nil
 }
 
 // @tags		Comments
@@ -157,7 +151,7 @@ func charactersGET(w http.ResponseWriter, r *http.Request) {
 // @Param       movie_id   path      int  true  "Movie ID"
 // @Success     200 {object} commentsGETResp
 // @Router      /api/comments/{movie_id} [get]
-func commentsGET(w http.ResponseWriter, r *http.Request) {
+func commentsGET(w http.ResponseWriter, r *http.Request, connect Connect) (any, error) {
 	id := strings.TrimPrefix(r.URL.Path, "/api/comments/")
 	log.Println(id)
 	var comments commentsGETResp
@@ -169,11 +163,10 @@ func commentsGET(w http.ResponseWriter, r *http.Request) {
 		query = fmt.Sprintf(`SELECT * FROM film_comments 
 			WHERE movie_id=%s ORDER BY timestamp DESC `, id)
 	}
-	rows, err := db.Query(query)
+	rows, err := connect.db.Query(query)
 	if err != nil {
-		httpJsonError("Internal error", w, err)
 		log.Printf("commentsGET: select error")
-		return
+		return "Internal error", err
 	}
 	defer rows.Close()
 	for rows.Next() {
@@ -181,15 +174,14 @@ func commentsGET(w http.ResponseWriter, r *http.Request) {
 		var id int
 		err := rows.Scan(&id, &c.Movie_Id, &c.Content, &c.IP, &c.Timestamp)
 		if err != nil {
-			httpJsonError("Internal error", w, err)
 			log.Printf("commentsGET: scan error")
-			return
+			return "Internal error", err
 		}
 		comments.Comments = append(comments.Comments, c)
 	}
 	comments.Count = len(comments.Comments)
 
-	httpJsonResp(comments, w)
+	return comments, nil
 }
 
 // @tags		Comments
@@ -200,32 +192,28 @@ func commentsGET(w http.ResponseWriter, r *http.Request) {
 // @Param       body body commentPOSTBody true "Movie ID"
 // @Success     200 {object} commentsGETResp
 // @Router      /api/comment/ [post]
-func commentPOST(w http.ResponseWriter, r *http.Request) {
+func commentPOST(w http.ResponseWriter, r *http.Request, connect Connect) (any, error) {
 	decoder := json.NewDecoder(r.Body)
 
 	var comment commentPOSTBody
 	err := decoder.Decode(&comment)
 	if err != nil {
-		httpJsonError("Internal error", w, err)
 		log.Printf("commentPOST: decode error")
-		return
+		return "Internal error", err
 	}
 	if len(comment.Comment) > 500 {
-		httpJsonError("comment must be less than 500 characters", w, err)
-		return
+		return "Comment must be less than 500 characters", err
 	}
 	if comment.Movie_Id == 0 || comment.Comment == "" {
-		httpJsonError("movie_id or comment missing", w, nil)
-		return
+		return "movie_id or comment missing", err
 	}
 	ip := r.RemoteAddr
 
-	_, err = db.Exec(fmt.Sprintf(`INSERT INTO film_comments (movie_id, comment, commenter_ip, timestamp)
+	_, err = connect.db.Exec(fmt.Sprintf(`INSERT INTO film_comments (movie_id, comment, commenter_ip, timestamp)
 		VALUES (%d, '%s', '%s', (NOW() AT TIME ZONE 'utc'));`, comment.Movie_Id, comment.Comment, ip))
 	if err != nil {
-		httpJsonError("Internal error", w, err)
 		log.Printf("commentPOST: insert error")
-		return
+		return "Internal error", err
 	}
 	var response struct {
 		Message string
@@ -233,5 +221,5 @@ func commentPOST(w http.ResponseWriter, r *http.Request) {
 	}
 	response.Message = "Comment posted"
 	response.IP = ip
-	httpJsonResp(response, w)
+	return response, nil
 }

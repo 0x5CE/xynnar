@@ -11,9 +11,10 @@ import (
 	httpSwagger "github.com/swaggo/http-swagger"
 )
 
-var db *sql.DB
-var client *redis.Client
-var err error
+type Connect struct {
+	db     *sql.DB
+	client *redis.Client
+}
 
 // @title Xynnar API
 // @version 1.0
@@ -26,6 +27,10 @@ var err error
 func main() {
 	port := os.Getenv("PORT")
 
+	var db *sql.DB
+	var client *redis.Client
+	var err error
+
 	if port == "" {
 		log.Fatal("$PORT must be set")
 	}
@@ -37,17 +42,21 @@ func main() {
 	defer db.Close()
 	defer client.Close()
 
+	connect := Connect{db, client}
+
+	http.Handle("/abc", APIHandler{connect, filmsGET})
+
 	http.Handle("/docs/", httpSwagger.Handler(
 		httpSwagger.URL("/docs/swagger.json")))
 	http.HandleFunc("/docs/swagger.json", swaggerFiles)
 
 	// API endpoints
 
-	http.HandleFunc("/api/films", filmsGET)
-	http.HandleFunc("/api/characters/", charactersGET)
-	http.HandleFunc("/api/comments/", commentsGET)
-	http.HandleFunc("/api/comment", commentPOST)
-	http.HandleFunc("/api/comment/", commentPOST)
+	http.Handle("/api/films", APIHandler{connect, filmsGET})
+	http.Handle("/api/characters/", APIHandler{connect, charactersGET})
+	http.Handle("/api/comments/", APIHandler{connect, commentsGET})
+	http.Handle("/api/comment", APIHandler{connect, commentPOST})
+	http.Handle("/api/comment/", APIHandler{connect, commentPOST})
 
 	log.Fatal(http.ListenAndServe(":"+port, nil))
 }

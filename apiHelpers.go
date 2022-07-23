@@ -14,29 +14,34 @@ import (
 	"github.com/go-redis/redis/v8"
 )
 
-func httpJsonResp(response any, w http.ResponseWriter) {
-	w.Header().Set("Content-Type", "application/json")
-	out, _ := json.Marshal(response)
-	w.Write(out)
+type APIHandler struct {
+	connect  Connect
+	endpoint func(http.ResponseWriter, *http.Request, Connect) (any, error)
 }
 
-func httpJsonError(message string, w http.ResponseWriter, err error) {
-	var response struct{ Message string }
-	response.Message = message
-	out, _ := json.Marshal(response)
+func (handle APIHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	resp, err := handle.endpoint(w, r, handle.connect)
+	if err != nil { // error response
+		var response struct{ Message string }
+		response.Message = resp.(string)
+		out, _ := json.Marshal(response)
 
-	log.Println(message)
-	log.Println(err)
+		log.Println(err)
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(500)
-	w.Write(out)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(500)
+		w.Write(out)
+	} else { // normal response
+		w.Header().Set("Content-Type", "application/json")
+		out, _ := json.Marshal(resp)
+		w.Write(out)
+	}
 }
 
-func makeSWAPICall(endpoint string, client *redis.Client) ([]byte, error) {
+func makeSWAPICall(endpoint string, c Connect) ([]byte, error) {
 	var res []byte
 	// check if value is cached
-	val, err := client.Get(context.Background(), endpoint).Result()
+	val, err := c.client.Get(context.Background(), endpoint).Result()
 	if err == redis.Nil {
 		log.Println("makeSWAPICall: cache not found, fetching", endpoint)
 		resp, err := http.Get("https://swapi.dev/api/" + endpoint)
@@ -48,7 +53,7 @@ func makeSWAPICall(endpoint string, client *redis.Client) ([]byte, error) {
 			return nil, err
 		}
 		// cache for future fetches
-		err = client.Set(context.Background(), endpoint, string(res), 48*time.Hour).Err()
+		err = c.client.Set(context.Background(), endpoint, string(res), 48*time.Hour).Err()
 	} else if err != nil {
 		return res, nil
 	} else {
@@ -78,12 +83,12 @@ func sortCharacters(sortParam string, characters []Character) {
 	})
 }
 
-func fetchCharacters(charactersLinks []string, filterParam string) ([]Character, float64, error) {
+func fetchCharacters(charactersLinks []string, filterParam string, c Connect) ([]Character, float64, error) {
 	var characters []Character
 	var totalHeight float64
 	for _, url := range charactersLinks {
 		characterId := strings.TrimPrefix(url, "https://swapi.dev/api/people/")
-		resp, _ := makeSWAPICall("people/"+characterId, client)
+		resp, _ := makeSWAPICall("people/"+characterId, c)
 
 		var character Character
 		if err := json.Unmarshal(resp, &character); err != nil {
