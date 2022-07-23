@@ -50,11 +50,11 @@ func makeSWAPICall(endpoint string, client *redis.Client) ([]byte, error) {
 		// cache for future fetches
 		err = client.Set(context.Background(), endpoint, string(res), 48*time.Hour).Err()
 	} else if err != nil {
-		panic(err)
+		return res, nil
 	} else {
 		res = []byte(val) // found
 	}
-	return res, err
+	return res, nil
 }
 
 func sortCharacters(sortParam string, characters []Character) {
