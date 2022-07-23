@@ -1,6 +1,6 @@
 # Xynnar 
 
-A demo API to help Go begginers that demonstrates the usage of the following:
+A demo API to help Go beginners that demonstrates the usage of the following:
 
 * GET/POST endpoints using standard library `net/http`
 * PostgreSQL
