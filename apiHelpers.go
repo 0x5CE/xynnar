@@ -14,6 +14,11 @@ import (
 	"github.com/go-redis/redis/v8"
 )
 
+type errorResp struct {
+	Message   string `json:"message" example:"Error fetching film"`
+	ErrorCode int    `json:"count" example:"500"`
+}
+
 type APIHandler struct {
 	connect  Connect
 	endpoint func(http.ResponseWriter, *http.Request, Connect) (any, error)
@@ -22,14 +27,15 @@ type APIHandler struct {
 func (handle APIHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	resp, err := handle.endpoint(w, r, handle.connect)
 	if err != nil { // error response
-		var response struct{ Message string }
+		var response errorResp
 		response.Message = resp.(string)
+		response.ErrorCode = 500
 		out, _ := json.Marshal(response)
 
 		log.Println(err)
 
 		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(500)
+		w.WriteHeader(response.ErrorCode)
 		w.Write(out)
 	} else { // normal response
 		w.Header().Set("Content-Type", "application/json")

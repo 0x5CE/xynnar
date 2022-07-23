@@ -12,48 +12,48 @@ import (
 )
 
 type Film struct {
-	Episode_Id     int
-	Title          string
-	Opening_Crawl  string
-	Release_Date   string
-	Total_Comments int
+	Episode_Id     int    `json:"episode_id"`
+	Title          string `json:"title"`
+	Opening_Crawl  string `json:"opening_crawl"`
+	Release_Date   string `json:"release_date"`
+	Total_Comments int    `json:"total_comments"`
 }
 
 type Character struct {
-	Name       string
-	Height     string
-	Height_Ft  string
-	Gender     string
-	Birth_Year string
-	Hair_Color string
+	Name       string `json:"name"`
+	Height     string `json:"height"`
+	Height_Ft  string `json:"height_ft"`
+	Gender     string `json:"gender"`
+	Birth_Year string `json:"birth_year"`
+	Hair_Color string `json:"hair_color"`
 }
 
 type Comment struct {
-	Movie_Id  string
-	Content   string
-	IP        string
-	Timestamp time.Time
+	Movie_Id  string    `json:"movie_id"`
+	Content   string    `json:"content"`
+	IP        string    `json:"ip"`
+	Timestamp time.Time `json:"timestamp"`
 }
 
 type filmsGETResp struct {
-	Count   int
-	Results []Film
+	Count   int    `json:"count" example:"10"`
+	Results []Film `json:"results"`
 }
 
 type charactersGETResp struct {
-	Count          int
-	TotalHeight    string
-	TotalHeight_Ft string
-	Characters     []Character
+	Count          int         `json:"count" example:"10"`
+	TotalHeight    string      `json:"totalHeight"`
+	TotalHeight_Ft string      `json:"totalHeight_ft"`
+	Characters     []Character `json:"characters"`
 }
 
 type commentsGETResp struct {
-	Count    int       `json:"count" example:"12"`
+	Count    int       `json:"count" example:"10"`
 	Comments []Comment `json:"comments"`
 }
 
 type commentPOSTBody struct {
-	Movie_Id int    `json:"movie_id" example:"12"`
+	Movie_Id int    `json:"movie_id" example:"5"`
 	Comment  string `json:"comment" example:"Great movie!"`
 }
 
@@ -63,6 +63,7 @@ type commentPOSTBody struct {
 // @Accept      json
 // @Produce     json
 // @Success     200 {object} filmsGETResp
+// @Failure     500 {object} errorResp
 // @Router      /api/films [get]
 func filmsGET(w http.ResponseWriter, r *http.Request, connect Connect) (any, error) {
 	val, err := makeSWAPICall("films", connect)
@@ -110,6 +111,7 @@ func filmsGET(w http.ResponseWriter, r *http.Request, connect Connect) (any, err
 // @Param       sort  query     string false "Sort by name, gender, or height. Place '-' before it for descending order"
 // @Param       filter  query     string false "Filter by gender"
 // @Success     200 {object} charactersGETResp
+// @Failure     500 {object} errorResp
 // @Router      /api/characters/{movie_id} [get]
 func charactersGET(w http.ResponseWriter, r *http.Request, connect Connect) (any, error) {
 	id := strings.TrimPrefix(r.URL.Path, "/api/characters/")
@@ -118,7 +120,7 @@ func charactersGET(w http.ResponseWriter, r *http.Request, connect Connect) (any
 
 	resp, err := makeSWAPICall("films/"+id, connect)
 	if err != nil {
-		return "Error fetching films", err
+		return "Error fetching film", err
 	}
 
 	var film struct{ Characters []string }
@@ -150,6 +152,7 @@ func charactersGET(w http.ResponseWriter, r *http.Request, connect Connect) (any
 // @Produce     json
 // @Param       movie_id   path      int  true  "Movie ID"
 // @Success     200 {object} commentsGETResp
+// @Failure     500 {object} errorResp
 // @Router      /api/comments/{movie_id} [get]
 func commentsGET(w http.ResponseWriter, r *http.Request, connect Connect) (any, error) {
 	id := strings.TrimPrefix(r.URL.Path, "/api/comments/")
@@ -191,6 +194,7 @@ func commentsGET(w http.ResponseWriter, r *http.Request, connect Connect) (any, 
 // @Produce     json
 // @Param       body body commentPOSTBody true "Movie ID"
 // @Success     200 {object} commentsGETResp
+// @Failure     500 {object} errorResp
 // @Router      /api/comment/ [post]
 func commentPOST(w http.ResponseWriter, r *http.Request, connect Connect) (any, error) {
 	decoder := json.NewDecoder(r.Body)

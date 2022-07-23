@@ -2,15 +2,15 @@ basePath: /
 definitions:
   main.Character:
     properties:
-      birth_Year:
+      birth_year:
         type: string
       gender:
         type: string
-      hair_Color:
+      hair_color:
         type: string
       height:
         type: string
-      height_Ft:
+      height_ft:
         type: string
       name:
         type: string
@@ -21,22 +21,22 @@ definitions:
         type: string
       ip:
         type: string
-      movie_Id:
+      movie_id:
         type: string
       timestamp:
         type: string
     type: object
   main.Film:
     properties:
-      episode_Id:
+      episode_id:
         type: integer
-      opening_Crawl:
+      opening_crawl:
         type: string
-      release_Date:
+      release_date:
         type: string
       title:
         type: string
-      total_Comments:
+      total_comments:
         type: integer
     type: object
   main.charactersGETResp:
@@ -46,10 +46,11 @@ definitions:
           $ref: '#/definitions/main.Character'
         type: array
       count:
+        example: 10
         type: integer
       totalHeight:
         type: string
-      totalHeight_Ft:
+      totalHeight_ft:
         type: string
     type: object
   main.commentPOSTBody:
@@ -58,7 +59,7 @@ definitions:
         example: Great movie!
         type: string
       movie_id:
-        example: 12
+        example: 5
         type: integer
     type: object
   main.commentsGETResp:
@@ -68,12 +69,22 @@ definitions:
           $ref: '#/definitions/main.Comment'
         type: array
       count:
-        example: 12
+        example: 10
         type: integer
+    type: object
+  main.errorResp:
+    properties:
+      count:
+        example: 500
+        type: integer
+      message:
+        example: Error fetching film
+        type: string
     type: object
   main.filmsGETResp:
     properties:
       count:
+        example: 10
         type: integer
       results:
         items:
@@ -84,7 +95,7 @@ info:
   contact:
     email: muazzam_ali@live.com
     name: Muazzam Ali Kazmi
-    url: https://www.linkedin.com/in/muazzamalikazmi/
+    url: https://github.com/0x5CE/xynnar
   description: This is an API to get Star Wars movies list and comment on them.
   license:
     name: Public Domain
@@ -119,6 +130,10 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/main.charactersGETResp'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/main.errorResp'
       summary: Get movie characters
       tags:
       - Characters
@@ -141,6 +156,10 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/main.commentsGETResp'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/main.errorResp'
       summary: Comment on a movie
       tags:
       - Comments
@@ -163,6 +182,10 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/main.commentsGETResp'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/main.errorResp'
       summary: Get all comments about a movie by ID.
       tags:
       - Comments
@@ -179,6 +202,10 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/main.filmsGETResp'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/main.errorResp'
       summary: Get films list
       tags:
       - Films

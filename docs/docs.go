@@ -12,7 +12,7 @@ const docTemplate = `{
         "title": "{{.Title}}",
         "contact": {
             "name": "Muazzam Ali Kazmi",
-            "url": "https://www.linkedin.com/in/muazzamalikazmi/",
+            "url": "https://github.com/0x5CE/xynnar",
             "email": "muazzam_ali@live.com"
         },
         "license": {
@@ -63,6 +63,12 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/main.charactersGETResp"
                         }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/main.errorResp"
+                        }
                     }
                 }
             }
@@ -97,6 +103,12 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/main.commentsGETResp"
                         }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/main.errorResp"
+                        }
                     }
                 }
             }
@@ -129,6 +141,12 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/main.commentsGETResp"
                         }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/main.errorResp"
+                        }
                     }
                 }
             }
@@ -152,6 +170,12 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/main.filmsGETResp"
                         }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/main.errorResp"
+                        }
                     }
                 }
             }
@@ -161,19 +185,19 @@ const docTemplate = `{
         "main.Character": {
             "type": "object",
             "properties": {
-                "birth_Year": {
+                "birth_year": {
                     "type": "string"
                 },
                 "gender": {
                     "type": "string"
                 },
-                "hair_Color": {
+                "hair_color": {
                     "type": "string"
                 },
                 "height": {
                     "type": "string"
                 },
-                "height_Ft": {
+                "height_ft": {
                     "type": "string"
                 },
                 "name": {
@@ -190,7 +214,7 @@ const docTemplate = `{
                 "ip": {
                     "type": "string"
                 },
-                "movie_Id": {
+                "movie_id": {
                     "type": "string"
                 },
                 "timestamp": {
@@ -201,19 +225,19 @@ const docTemplate = `{
         "main.Film": {
             "type": "object",
             "properties": {
-                "episode_Id": {
+                "episode_id": {
                     "type": "integer"
                 },
-                "opening_Crawl": {
+                "opening_crawl": {
                     "type": "string"
                 },
-                "release_Date": {
+                "release_date": {
                     "type": "string"
                 },
                 "title": {
                     "type": "string"
                 },
-                "total_Comments": {
+                "total_comments": {
                     "type": "integer"
                 }
             }
@@ -228,12 +252,13 @@ const docTemplate = `{
                     }
                 },
                 "count": {
-                    "type": "integer"
+                    "type": "integer",
+                    "example": 10
                 },
                 "totalHeight": {
                     "type": "string"
                 },
-                "totalHeight_Ft": {
+                "totalHeight_ft": {
                     "type": "string"
                 }
             }
@@ -247,7 +272,7 @@ const docTemplate = `{
                 },
                 "movie_id": {
                     "type": "integer",
-                    "example": 12
+                    "example": 5
                 }
             }
         },
@@ -262,7 +287,20 @@ const docTemplate = `{
                 },
                 "count": {
                     "type": "integer",
-                    "example": 12
+                    "example": 10
+                }
+            }
+        },
+        "main.errorResp": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer",
+                    "example": 500
+                },
+                "message": {
+                    "type": "string",
+                    "example": "Error fetching film"
                 }
             }
         },
@@ -270,7 +308,8 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "count": {
-                    "type": "integer"
+                    "type": "integer",
+                    "example": 10
                 },
                 "results": {
                     "type": "array",
