@@ -1,1 +1,1 @@
-web: swag init
+web: bin/swag init
