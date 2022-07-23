@@ -6,6 +6,8 @@ import (
 	"log"
 	"math"
 	"net/http"
+	"net/url"
+	"os"
 	"strconv"
 
 	"github.com/go-redis/redis/v8"
@@ -13,7 +15,8 @@ import (
 
 func dbInit() (*sql.DB, *redis.Client, error) {
 	// postgres
-	psqlInfo := "host=localhost port=5432 user=postgres password=postgres sslmode=disable"
+	//psqlInfo := "host=localhost port=5432 user=postgres password=postgres sslmode=disable"
+	psqlInfo := os.Getenv("DATABASE_URL")
 	db, err := sql.Open("postgres", psqlInfo)
 	if err != nil {
 		return nil, nil, err
@@ -44,9 +47,14 @@ func dbInit() (*sql.DB, *redis.Client, error) {
 		return nil, nil, err
 	}
 	// redis
+	var redisUrl = os.Getenv("REDIS_URL")
+	parsedURL, _ := url.Parse(redisUrl)
+	password, _ := parsedURL.User.Password()
+	url := parsedURL.Host
+
 	client := redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
-		Password: "",
+		Addr:     url,
+		Password: password,
 		DB:       0,
 	})
 	_, err = client.Ping(client.Context()).Result()
