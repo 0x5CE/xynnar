@@ -1,0 +1,185 @@
+basePath: /
+definitions:
+  main.Character:
+    properties:
+      birth_Year:
+        type: string
+      gender:
+        type: string
+      hair_Color:
+        type: string
+      height:
+        type: string
+      height_Ft:
+        type: string
+      name:
+        type: string
+    type: object
+  main.Comment:
+    properties:
+      content:
+        type: string
+      ip:
+        type: string
+      movie_Id:
+        type: string
+      timestamp:
+        type: string
+    type: object
+  main.Film:
+    properties:
+      episode_Id:
+        type: integer
+      opening_Crawl:
+        type: string
+      release_Date:
+        type: string
+      title:
+        type: string
+      total_Comments:
+        type: integer
+    type: object
+  main.charactersGETResp:
+    properties:
+      characters:
+        items:
+          $ref: '#/definitions/main.Character'
+        type: array
+      count:
+        type: integer
+      totalHeight:
+        type: string
+      totalHeight_Ft:
+        type: string
+    type: object
+  main.commentPOSTBody:
+    properties:
+      comment:
+        example: Great movie!
+        type: string
+      movie_id:
+        example: 12
+        type: integer
+    type: object
+  main.commentsGETResp:
+    properties:
+      comments:
+        items:
+          $ref: '#/definitions/main.Comment'
+        type: array
+      count:
+        example: 12
+        type: integer
+    type: object
+  main.filmsGETResp:
+    properties:
+      count:
+        type: integer
+      results:
+        items:
+          $ref: '#/definitions/main.Film'
+        type: array
+    type: object
+info:
+  contact:
+    email: muazzam_ali@live.com
+    name: Muazzam Ali Kazmi
+    url: https://www.linkedin.com/in/muazzamalikazmi/
+  description: This is an API to get Star Wars movies list and comment on them.
+  license:
+    name: Public Domain
+  title: Xynnar API
+  version: "1.0"
+paths:
+  /api/characters/{movie_id}:
+    get:
+      consumes:
+      - application/json
+      description: Retreive characters in a particular movie specified by ID. Also
+        outputs their combined height.
+      parameters:
+      - description: Movie ID
+        in: path
+        name: movie_id
+        required: true
+        type: integer
+      - description: Sort by name, gender, or height. Place '-' before it for descending
+          order
+        in: query
+        name: sort
+        type: string
+      - description: Filter by gender
+        in: query
+        name: filter
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.charactersGETResp'
+      summary: Get movie characters
+      tags:
+      - Characters
+  /api/comment/:
+    post:
+      consumes:
+      - application/json
+      description: Commment on a movie (public comment)
+      parameters:
+      - description: Movie ID
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/main.commentPOSTBody'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.commentsGETResp'
+      summary: Comment on a movie
+      tags:
+      - Comments
+  /api/comments/{movie_id}:
+    get:
+      consumes:
+      - application/json
+      description: Comments returns either all comments, or comments about a particular
+        movie. For instance, /comments/4
+      parameters:
+      - description: Movie ID
+        in: path
+        name: movie_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.commentsGETResp'
+      summary: Get all comments about a movie by ID.
+      tags:
+      - Comments
+  /api/films:
+    get:
+      consumes:
+      - application/json
+      description: Retreive list of all Star War movies along with title, opening
+        crawl, etc. Retreived in chronological order.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.filmsGETResp'
+      summary: Get films list
+      tags:
+      - Films
+swagger: "2.0"
