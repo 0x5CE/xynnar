@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"math"
 	"net/http"
 	"strconv"
@@ -16,6 +17,27 @@ func dbInit() (*sql.DB, *redis.Client, error) {
 	db, err := sql.Open("postgres", psqlInfo)
 	if err != nil {
 		return nil, nil, err
+	}
+	// create table if it doesn't exist
+	val, err := db.Query("select count(*) from pg_tables where tablename='film_comments';")
+	var exists int
+	if err != nil {
+		return nil, nil, err
+	}
+	defer val.Close()
+	if val.Next() {
+		err = val.Scan(&exists)
+	}
+	if err != nil {
+		return nil, nil, err
+	}
+	if exists == 0 {
+		log.Println("Creating table")
+		_, err := db.Exec(`CREATE TABLE film_comments (
+			id SERIAL, movie_id INT, comment VARCHAR, commenter_ip VARCHAR, timestamp TIMESTAMP);`)
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 	err = db.Ping()
 	if err != nil {
