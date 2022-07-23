@@ -57,7 +57,7 @@ func makeSWAPICall(endpoint string, client *redis.Client) ([]byte, error) {
 	return res, err
 }
 
-func go (sortParam string, characters []Character) {
+func sortCharacters(sortParam string, characters []Character) {
 	asc := true
 	if strings.HasPrefix(sortParam, "-") {
 		asc = false
