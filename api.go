@@ -35,6 +35,35 @@ type Comment struct {
 	Timestamp time.Time
 }
 
+type filmsGETResp struct {
+	Count   int
+	Results []Film
+}
+
+type charactersGETResp struct {
+	Count          int
+	TotalHeight    string
+	TotalHeight_Ft string
+	Characters     []Character
+}
+
+type commentsGETResp struct {
+	Count    int       `json:"count" example:"12"`
+	Comments []Comment `json:"comments"`
+}
+
+type commentPOSTBody struct {
+	Movie_Id int    `json:"movie_id" example:"12"`
+	Comment  string `json:"comment" example:"Great movie!"`
+}
+
+// @tags		Films
+// @Summary     Get films list
+// @Description Retreive list of all Star War movies along with title, opening crawl, etc. Retreived in chronological order.
+// @Accept      json
+// @Produce     json
+// @Success     200 {object} filmsGETResp
+// @Router      /api/films [get]
 func filmsGET(w http.ResponseWriter, r *http.Request) {
 	val, err := makeSWAPICall("films", client)
 	if err != nil {
@@ -42,7 +71,7 @@ func filmsGET(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var films struct{ Results []Film }
+	var films filmsGETResp
 	err = json.Unmarshal(val, &films)
 	if err != nil {
 		httpJsonError("Error in films data", w, err)
@@ -67,6 +96,7 @@ func filmsGET(w http.ResponseWriter, r *http.Request) {
 		}
 		films.Results[i].Total_Comments = commentsCount
 	}
+	films.Count = len(films.Results)
 
 	sort.Slice(films.Results, func(i, j int) bool {
 		return films.Results[i].Release_Date < films.Results[j].Release_Date
@@ -74,8 +104,18 @@ func filmsGET(w http.ResponseWriter, r *http.Request) {
 	httpJsonResp(films, w)
 }
 
+// @tags		Characters
+// @Summary     Get movie characters
+// @Description Retreive characters in a particular movie specified by ID. Also outputs their combined height.
+// @Accept      json
+// @Produce     json
+// @Param       movie_id  path     int true "Movie ID"
+// @Param       sort  query     string false "Sort by name, gender, or height. Place '-' before it for descending order"
+// @Param       filter  query     string false "Filter by gender"
+// @Success     200 {object} charactersGETResp
+// @Router      /api/characters/{movie_id} [get]
 func charactersGET(w http.ResponseWriter, r *http.Request) {
-	id := strings.TrimPrefix(r.URL.Path, "/characters/")
+	id := strings.TrimPrefix(r.URL.Path, "/api/characters/")
 	sortParam := r.URL.Query().Get("sort")
 	filterParam := r.URL.Query().Get("filter")
 
@@ -100,12 +140,7 @@ func charactersGET(w http.ResponseWriter, r *http.Request) {
 	}
 	sortCharacters(sortParam, characters)
 
-	var response struct {
-		Count          int
-		TotalHeight    string
-		TotalHeight_Ft string
-		Characters     []Character
-	}
+	var response charactersGETResp
 	response.Count = len(characters)
 	response.TotalHeight = fmt.Sprintf("%d", int(totalHeight))
 	response.TotalHeight_Ft, _ = heightInFeet(response.TotalHeight)
@@ -114,12 +149,18 @@ func charactersGET(w http.ResponseWriter, r *http.Request) {
 	httpJsonResp(response, w)
 }
 
+// @tags		Comments
+// @Summary     Get all comments about a movie by ID.
+// @Description Comments returns either all comments, or comments about a particular movie. For instance, /comments/4
+// @Accept      json
+// @Produce     json
+// @Param       movie_id   path      int  true  "Movie ID"
+// @Success     200 {object} commentsGETResp
+// @Router      /api/comments/{movie_id} [get]
 func commentsGET(w http.ResponseWriter, r *http.Request) {
-	id := strings.TrimPrefix(r.URL.Path, "/comments/")
-	var comments struct {
-		Count    int
-		Comments []Comment
-	}
+	id := strings.TrimPrefix(r.URL.Path, "/api/comments/")
+	log.Println(id)
+	var comments commentsGETResp
 	var query string
 	if id == "" {
 		// all
@@ -151,38 +192,36 @@ func commentsGET(w http.ResponseWriter, r *http.Request) {
 	httpJsonResp(comments, w)
 }
 
+// @tags		Comments
+// @Summary     Comment on a movie
+// @Description Commment on a movie (public comment)
+// @Accept      json
+// @Produce     json
+// @Param       body body commentPOSTBody true "Movie ID"
+// @Success     200 {object} commentsGETResp
+// @Router      /api/comment/ [post]
 func commentPOST(w http.ResponseWriter, r *http.Request) {
-	var id string
-	if r.URL.Path != "/comment" {
-		id = strings.TrimPrefix(r.URL.Path, "/comment/")
-	}
 	decoder := json.NewDecoder(r.Body)
 
-	var comment struct {
-		Comment  string
-		Movie_Id string
-	}
+	var comment commentPOSTBody
 	err := decoder.Decode(&comment)
 	if err != nil {
 		httpJsonError("Internal error", w, err)
 		log.Printf("commentPOST: decode error")
 		return
 	}
-	if id != "" {
-		comment.Movie_Id = id
-	}
 	if len(comment.Comment) > 500 {
 		httpJsonError("comment must be less than 500 characters", w, err)
 		return
 	}
-	if comment.Movie_Id == "" || comment.Comment == "" {
+	if comment.Movie_Id == 0 || comment.Comment == "" {
 		httpJsonError("movie_id or comment missing", w, nil)
 		return
 	}
 	ip := r.RemoteAddr
 
 	_, err = db.Exec(fmt.Sprintf(`INSERT INTO film_comments (movie_id, comment, commenter_ip, timestamp)
-		VALUES (%s, '%s', '%s', (NOW() AT TIME ZONE 'utc'));`, comment.Movie_Id, comment.Comment, ip))
+		VALUES (%d, '%s', '%s', (NOW() AT TIME ZONE 'utc'));`, comment.Movie_Id, comment.Comment, ip))
 	if err != nil {
 		httpJsonError("Internal error", w, err)
 		log.Printf("commentPOST: insert error")

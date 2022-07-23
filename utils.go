@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"math"
+	"net/http"
 	"strconv"
 
 	"github.com/go-redis/redis/v8"
@@ -33,6 +34,9 @@ func dbInit() (*sql.DB, *redis.Client, error) {
 	return db, client, err
 }
 
+// Document represents a regular document.
+//
+// Link to https://google.com
 func heightInFeet(heightInCm string) (string, error) {
 	cms, err := strconv.ParseFloat(heightInCm, 64)
 	if err != nil {
@@ -41,4 +45,8 @@ func heightInFeet(heightInCm string) (string, error) {
 	feet := math.Floor(cms / 30.48)
 	inches := cms/2.54 - feet*12
 	return fmt.Sprintf("%dft %0.2finches", int(feet), inches), nil
+}
+
+func swaggerFiles(w http.ResponseWriter, r *http.Request) {
+	http.ServeFile(w, r, "./docs/swagger.json")
 }
